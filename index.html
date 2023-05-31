@@ -1,6 +1,11 @@
 
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+        if (screen.width <= 768) {  // Adjust the screen width as per your needs
+            document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=device-width, initial-scale=2');
+            // Adjust the initial-scale value as per your needs
+        }
+    </script>
 
 <!-- Firebase JavaScript SDK -->
 <script src="https://www.gstatic.com/firebasejs/8.7.1/firebase-app.js"></script>
