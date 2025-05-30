@@ -1,115 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Note Taking App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Firebase JavaScript SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.7.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.7.1/firebase-database.js"></script>
+  <script data-goatcounter="https://analyticals.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
+  <style>
+    /* Basic styles for the grid container */
+#notesContainer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 450px));
+  gap: 20px;
+  max-width: 100%;
+}
+
+@media (max-width: 950px) { /* Adjust based on available space */
+  #notesContainer {
+    grid-template-columns: repeat(1, minmax(150px, 450px));
+  }
+}
 
 
-<script>
-        if (screen.width <= 768) {  // Adjust the screen width as per your needs
-            document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=device-width, initial-scale=2');
-            // Adjust the initial-scale value as per your needs
-        }
-    </script>
 
-<!-- Firebase JavaScript SDK -->
-<script src="https://www.gstatic.com/firebasejs/8.7.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.7.1/firebase-database.js"></script>
-
-<!-- Your Firebase configuration -->
-<script>
-  // Replace this with your actual Firebase configuration
-  var firebaseConfig = {
-    apiKey: "AIzaSyCMRFY1FCRVLWZXl8EXKAJefBsyloaE4os",
-    authDomain: "notes-f8588.firebaseapp.com",
-    databaseURL: "https://notes-f8588-default-rtdb.europe-west1.firebasedatabase.app/",
-    projectId: "notes-f8588",
-    storageBucket: "notes-f8588.appspot.com",
-    messagingSenderId: "106653771180",
-    appId: "1:106653771180:web:f9414f2731fb9953664609"
-  };
-  
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-</script>
-
-<br>
-<input type="text" id="messageInput" placeholder="Enter your message" style="margin-top: 40px; margin-left: 20px;">
-<button onclick="sendMessage()">Send</button>
-
-<ul id="messageList" style="margin-top: 40px; margin-left: 20px;"></ul>
-
-<script>
-  function sendMessage() {
-    // Get the message from the input field
-    var message = document.getElementById("messageInput").value;
-    
-    // Get a reference to the Firebase database
-    var database = firebase.database();
-    
-    // Generate a unique key for the message
-    var messageKey = database.ref().child("messages").push().key;
-    
-    // Create a data object with only the message field
-    var messageData = {
-      message: message
+    #notesContainer div {
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    li {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    button.delete-btn {
+      margin-right: 10px;
+    }
+  </style>
+  <script>
+    // Firebase configuration (use your actual config)
+    var firebaseConfig = {
+      apiKey: "AIzaSyCMRFY1FCRVLWZXl8EXKAJefBsyloaE4os",
+      authDomain: "notes-f8588.firebaseapp.com",
+      databaseURL: "https://notes-f8588-default-rtdb.europe-west1.firebasedatabase.app/",
+      projectId: "notes-f8588",
+      storageBucket: "notes-f8588.appspot.com",
+      messagingSenderId: "106653771180",
+      appId: "1:106653771180:web:f9414f2731fb9953664609"
     };
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+  </script>
+</head>
+<body>
+  <!-- Input Area -->
+  <div style="margin: 20px; margin-top: 40px;">
+    <!-- Message input -->
+    <input type="text" id="messageInput" placeholder="Enter your message" style="width:300px;">
+    <!-- Frequency input (optional) -->
+    <input type="number" id="frequencyInput" placeholder="Frequency (days)" style="width:150px; margin-left:10px;">
     
-    // Save the message to the Firebase database
-    var updates = {};
-    updates["/messages/" + messageKey] = messageData;
-    database.ref().update(updates);
+    <!-- Dropdown for selecting note type -->
+    <select id="noteTypeSelect" style="margin-left:10px;">
+      <!-- Options will be populated from Firebase (messagetypes node) -->
+    </select>
+
     
-    // Clear the input field
-    document.getElementById("messageInput").value = "";
-  }
+    <!-- Send Message button -->
+    <button onclick="sendMessage()" style="margin-left:10px;">Send</button>
+  </div>
   
- // Get a reference to the Firebase database
-  var database = firebase.database();
+  <!-- Container for note lists -->
+  <div id="notesContainer"></div>
   
-  // Reference the "messages" node in the database
-  var messagesRef = database.ref("messages");
-  
-  // Listen for changes in the messages data
-  messagesRef.on("value", function(snapshot) {
-    // Clear the existing messages in the <ul> element
-    var messageList = document.getElementById("messageList");
-    messageList.innerHTML = "";
-  
-    // Iterate over the snapshot of messages and append them to the <ul> element
-    snapshot.forEach(function(childSnapshot) {
-      var messageKey = childSnapshot.key;
-      var messageData = childSnapshot.val().message;
-  
-      // Create a <li> element for each message
-      var li = document.createElement("li");
-      li.style.display = "flex";
+  <script>
 
-      // Create a delete button for each message
-      var deleteButton = document.createElement("button");
-      deleteButton.textContent = "-";
-      deleteButton.style.marginRight = "10px";
-      deleteButton.addEventListener("click", function() {
-        deleteMessage(messageKey);
-      });
+// Reference to the Firebase node that holds note types
+var typesRef = firebase.database().ref("messagetypes");
 
-      // Append the delete button to the <li> element
-      li.appendChild(deleteButton);
+// Populate the dropdown with note types from Firebase
+typesRef.on("value", function(snapshot) {
+  var select = document.getElementById("noteTypeSelect");
+  select.innerHTML = ""; // Clear existing options
 
-      // Create a span element for the message text
-      var span = document.createElement("span");
-      span.textContent = messageData;
-
-      // Append the span element to the <li>
-      li.appendChild(span);
-
-      // Append the <li> element to the <ul>
-      messageList.appendChild(li);
-    });
+  // Ensure "general" exists; if not, add it manually
+  var hasGeneral = false;
+  snapshot.forEach(function(childSnapshot) {
+    var type = childSnapshot.val();
+    if (type.toLowerCase() === "general") {
+      hasGeneral = true;
+    }
+    var option = document.createElement("option");
+    option.value = type.toLowerCase();
+    option.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+    select.appendChild(option);
   });
-  
-  
-  // Function to delete a message
-  function deleteMessage(messageKey) {
-    // Get a reference to the specific message in the database
-    var messageRef = database.ref("messages/" + messageKey);
-  
-    // Remove the message from the database
-    messageRef.remove();
+  if (!hasGeneral) {
+    // Add default "general" if it doesn't exist
+    typesRef.child("general").set("General");
   }
-</script>
+
+  // Add the "Add New Type" option at the end
+  var addOption = document.createElement("option");
+  addOption.value = "add_new";
+  addOption.textContent = "Add New Type";
+  select.appendChild(addOption);
+});
+
+// Listen for the dropdown change event
+document.getElementById("noteTypeSelect").addEventListener("change", function(){
+  if (this.value === "add_new") {
+    var newType = prompt("Enter new note type:").trim();
+    if (newType) {
+      // Save the new type to Firebase, using lowercase as key
+      typesRef.child(newType.toLowerCase()).set(newType);
+    }
+    // Reset selection to default ("general") after adding new type
+    this.value = "general";
+  }
+});
+
+
+    // Global array to track available note types
+    var availableTypes = ["general", "ideas"];
+    
+    // Function to add a new note type to the dropdown
+    function addNewType() {
+      var newType = document.getElementById("newTypeInput").value.trim().toLowerCase();
+      if (newType && !availableTypes.includes(newType)) {
+        availableTypes.push(newType);
+        var select = document.getElementById("noteTypeSelect");
+        var option = document.createElement("option");
+        option.value = newType;
+        option.textContent = newType.charAt(0).toUpperCase() + newType.slice(1);
+        select.appendChild(option);
+        document.getElementById("newTypeInput").value = "";
+      }
+    }
+    
+// Function to send a message with note type and (optional) frequency
+function sendMessage() {
+  var message = document.getElementById("messageInput").value.trim();
+  var frequency = parseInt(document.getElementById("frequencyInput").value) || 0;
+  var noteType = document.getElementById("noteTypeSelect").value || "General";
+
+  if (!message) return; // Don't send empty messages
+
+  var database = firebase.database();
+  var messageKey = database.ref().child("messages").push().key;
+
+  var messageData = {
+    message: message,
+    frequency: frequency, // frequency in days; 0 means none
+    noteType: noteType,
+    timestamp: Date.now(),
+    updatedTimestamp: Date.now()
+  };
+
+  var updates = {};
+  updates["/messages/" + messageKey] = messageData;
+  database.ref().update(updates);
+
+  // Clear input fields
+  document.getElementById("messageInput").value = "";
+  document.getElementById("frequencyInput").value = "";
+}
+
+// Reference to Firebase database messages
+var database = firebase.database();
+var messagesRef = database.ref("messages");
+
+messagesRef.on("value", function(snapshot) {
+  var notesContainer = document.getElementById("notesContainer");
+  notesContainer.innerHTML = "";
+
+  // Store messages by type
+  var messagesByType = { "General": [] }; // Default category
+
+  snapshot.forEach(function(childSnapshot) {
+    var messageKey = childSnapshot.key;
+    var messageData = childSnapshot.val();
+    var messageType = messageData.noteType || "General"; // Ensure correct field name
+
+    // Ensure type category exists
+    if (!messagesByType[messageType]) {
+      messagesByType[messageType] = [];
+    }
+
+    // Format message with bold text
+    var formattedMessage = messageData.message.replace(/\*(.*?)\*/g, "<b>$1</b>");
+
+// Create message element
+var li = document.createElement("li");
+li.style.display = "flex";
+li.style.alignItems = "flex-start"; // Align items to the top of the flex container
+
+var deleteButton = document.createElement("button");
+deleteButton.textContent = "-";
+deleteButton.style.marginRight = "10px";
+deleteButton.style.alignSelf = "flex-start"; // Ensure the button stays at the top
+deleteButton.addEventListener("click", function() {
+  deleteMessage(messageKey);
+});
+
+var span = document.createElement("span");
+span.innerHTML = formattedMessage; // Use innerHTML to support bold formatting
+
+li.appendChild(deleteButton);
+li.appendChild(span);
+
+
+    // Store in the correct category
+    messagesByType[messageType].push(li);
+  });
+
+  // Render categorized messages
+  Object.keys(messagesByType).forEach(type => {
+    var typeContainer = document.getElementById(`list-${type}`);
+
+    if (!typeContainer) {
+      typeContainer = document.createElement("div");
+      typeContainer.id = `list-${type}`;
+      typeContainer.className = "messageList";
+
+      var header = document.createElement("h3");
+      header.textContent = type;
+      typeContainer.appendChild(header);
+
+      var ul = document.createElement("ul");
+      typeContainer.appendChild(ul);
+      notesContainer.appendChild(typeContainer);
+    }
+
+    var ul = typeContainer.querySelector("ul");
+    ul.innerHTML = "";
+    messagesByType[type].forEach(msg => ul.appendChild(msg));
+  });
+});
+
+    // Function to delete a message from Firebase
+    function deleteMessage(messageKey) {
+      var messageRef = database.ref("messages/" + messageKey);
+      messageRef.remove();
+    }
+    
+    // Adjust viewport for small screens if needed
+    if (screen.width <= 768) {
+      document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=device-width, initial-scale=1.5');
+    }
+
+    
+  </script>
+</body>
+</html>
